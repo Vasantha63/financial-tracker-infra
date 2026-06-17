@@ -1,0 +1,254 @@
+/* style.css */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #0f172a;
+  color: #f1f5f9;
+  font-family: 'Segoe UI', sans-serif;
+  padding: 24px;
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+
+.header h1 {
+  font-size: 26px;
+  color: #38bdf8;
+  margin-bottom: 4px;
+}
+
+.header p {
+  color: #64748b;
+  font-size: 13px;
+}
+
+/* Summary Cards */
+.summary-cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.card {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 18px;
+  border-left: 4px solid;
+}
+
+.card.income  { border-color: #22c55e; }
+.card.expense { border-color: #ef4444; }
+.card.balance { border-color: #38bdf8; }
+
+.card label {
+  font-size: 11px;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.card .amount {
+  font-size: 26px;
+  font-weight: bold;
+}
+
+.card.income  .amount { color: #22c55e; }
+.card.expense .amount { color: #ef4444; }
+.card.balance .amount { color: #38bdf8; }
+
+/* Main Grid */
+.main-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.box {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.box h3 {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+/* Form */
+.form-group {
+  margin-bottom: 10px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.form-group input,
+.form-group select {
+  width: 100%;
+  padding: 9px 12px;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 13px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #38bdf8;
+}
+
+.btn-add {
+  width: 100%;
+  padding: 11px;
+  background: #0ea5e9;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  margin-top: 6px;
+  transition: background 0.2s;
+}
+
+.btn-add:hover { background: #0284c7; }
+
+/* Transaction List */
+.tx-list {
+  max-height: 280px;
+  overflow-y: auto;
+}
+
+.tx-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 11px 12px;
+  background: #0f172a;
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+.tx-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tx-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+}
+
+.tx-icon.inc { background: #14532d; }
+.tx-icon.exp { background: #7f1d1d; }
+
+.tx-name { font-size: 13px; font-weight: 500; }
+.tx-cat  { font-size: 11px; color: #64748b; margin-top: 2px; }
+
+.tx-amount {
+  font-size: 14px;
+  font-weight: bold;
+}
+
+.tx-amount.inc { color: #22c55e; }
+.tx-amount.exp { color: #ef4444; }
+
+/* Category Chart */
+.chart-box {
+  background: #1e293b;
+  border-radius: 12px;
+  padding: 18px;
+}
+
+.chart-box h3 {
+  font-size: 11px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+}
+
+.bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.bar-label {
+  width: 80px;
+  font-size: 11px;
+  color: #94a3b8;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.bar-track {
+  flex: 1;
+  background: #0f172a;
+  border-radius: 4px;
+  height: 18px;
+  overflow: hidden;
+}
+
+.bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  padding-left: 8px;
+  transition: width 0.4s ease;
+  min-width: 30px;
+}
+
+.bar-fill span {
+  font-size: 10px;
+  color: white;
+  font-weight: bold;
+  white-space: nowrap;
+}
+
+/* Infra Badge */
+.infra-badge {
+  text-align: center;
+  padding: 10px;
+  background: #1e293b;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #475569;
+  margin-top: 16px;
+}
+
+.empty-state {
+  text-align: center;
+  color: #475569;
+  font-size: 12px;
+  padding: 24px;
+}

@@ -2,9 +2,6 @@
 # ఇక్కడ HTML లేదు — Infrastructure మాత్రమే
 # App code S3 లో పెట్టి download చేస్తాం
 
-provider "aws" {
-  region = var.region
-}
 
 # ── S3 Bucket — App files store చేయడానికి ──────
 resource "aws_s3_bucket" "app" {
@@ -16,27 +13,27 @@ resource "aws_s3_bucket" "app" {
 resource "aws_s3_object" "index" {
   bucket       = aws_s3_bucket.app.id
   key          = "index.html"
-  source       = "../app/index.html"     # Local file path
+  source       = "./app/index.html"     # Local file path
   content_type = "text/html"
-  etag         = filemd5("../app/index.html")  # File change అయితే re-upload
+  etag         = filemd5("./app/index.html")  # File change అయితే re-upload
 }
 
 # S3 లో style.css upload
 resource "aws_s3_object" "css" {
   bucket       = aws_s3_bucket.app.id
   key          = "style.css"
-  source       = "../app/style.css"
+  source       = "./app/style.css"
   content_type = "text/css"
-  etag         = filemd5("../app/style.css")
+  etag         = filemd5("./app/style.css")
 }
 
 # S3 లో app.js upload
 resource "aws_s3_object" "js" {
   bucket       = aws_s3_bucket.app.id
   key          = "app.js"
-  source       = "../app/app.js"
+  source       = "./app/app.js"
   content_type = "application/javascript"
-  etag         = filemd5("../app/app.js")
+  etag         = filemd5("./app/app.js")
 }
 
 # ── VPC ─────────────────────────────────────────

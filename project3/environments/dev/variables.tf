@@ -34,3 +34,22 @@ variable "db_password" {
   type      = string
   sensitive = true
 }
+variable "eks_node_type" {
+  type    = string
+  default = "t3.medium"
+}
+
+variable "eks_min_nodes" {
+  type    = number
+  default = 1
+}
+
+variable "eks_max_nodes" {
+  type    = number
+  default = 3
+}
+
+variable "eks_desired_nodes" {
+  type    = number
+  default = 2
+}

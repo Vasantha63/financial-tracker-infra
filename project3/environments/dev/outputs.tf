@@ -16,3 +16,14 @@ output "db_endpoint" {
 output "environment" {
   value = var.env
 }
+output "cluster_name" {
+  value = module.eks.cluster_name
+}
+
+output "ecr_url" {
+  value = module.eks.ecr_url
+}
+
+output "cluster_endpoint" {
+  value = module.eks.cluster_endpoint
+}

@@ -1,4 +1,4 @@
-name: Financial Tracker - Terraform Deploy
+name: Financial Tracker - Complete DevOps Pipeline
 
 on:
   push:
@@ -6,13 +6,22 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  AWS_REGION: us-east-1
+  PROJECT_NAME: financial-tracker
+
 jobs:
+  # ── JOB 1: Terraform ─────────────────────────────
   terraform:
-    name: Terraform
+    name: Terraform Infrastructure
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: project1/
+        working-directory: project3/environments/dev
+
+    outputs:
+      ecr_url: ${{ steps.tf_output.outputs.ecr_url }}
+      cluster_name: ${{ steps.tf_output.outputs.cluster_name }}
 
     steps:
       - name: Checkout Code
@@ -23,12 +32,13 @@ jobs:
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
+          aws-region: ${{ env.AWS_REGION }}
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3.1.2
         with:
           terraform_version: 1.7.0
+          terraform_wrapper: false
 
       - name: Terraform Init
         run: terraform init
@@ -41,7 +51,9 @@ jobs:
           terraform plan \
             -var="region=us-east-1" \
             -var="instance_type=t2.micro" \
-            -var="project_name=financial-tracker"
+            -var="project_name=financial-tracker" \
+            -var="env=dev" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}"
 
       - name: Terraform Apply
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
@@ -49,8 +61,150 @@ jobs:
           terraform apply -auto-approve \
             -var="region=us-east-1" \
             -var="instance_type=t2.micro" \
-            -var="project_name=financial-tracker"
+            -var="project_name=financial-tracker" \
+            -var="env=dev" \
+            -var="db_password=${{ secrets.DB_PASSWORD }}"
 
-      - name: Show App URL
+      - name: Get Terraform Outputs
         if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-        run: terraform output
+        id: tf_output
+        run: |
+          echo "ecr_url=$(terraform output -raw ecr_url)" >> $GITHUB_OUTPUT
+          echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
+
+  # ── JOB 2: Docker Build + Push ───────────────────
+  docker:
+    name: Docker Build and Push
+    runs-on: ubuntu-latest
+    needs: terraform
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.image_tag }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set Image Tag
+        id: meta
+        run: |
+          echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Build Docker Image
+        working-directory: project3
+        run: |
+          docker build -t ${{ needs.terraform.outputs.ecr_url }}:${{ github.sha }} .
+          docker tag ${{ needs.terraform.outputs.ecr_url }}:${{ github.sha }} \
+                     ${{ needs.terraform.outputs.ecr_url }}:latest
+
+      - name: Push to ECR
+        run: |
+          docker push ${{ needs.terraform.outputs.ecr_url }}:${{ github.sha }}
+          docker push ${{ needs.terraform.outputs.ecr_url }}:latest
+
+  # ── JOB 3: Deploy to EKS ─────────────────────────
+  deploy:
+    name: Deploy to EKS
+    runs-on: ubuntu-latest
+    needs: [terraform, docker]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.29.0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.14.0'
+
+      - name: Update kubeconfig
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ needs.terraform.outputs.cluster_name }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Deploy with Helm
+        working-directory: project3
+        run: |
+          helm upgrade --install financial-tracker ./helm/financial-tracker \
+            --set image.repository=${{ needs.terraform.outputs.ecr_url }} \
+            --set image.tag=${{ needs.docker.outputs.image_tag }} \
+            --set env.APP_ENV=dev \
+            --wait \
+            --timeout 5m
+
+      - name: Verify Deployment
+        run: |
+          kubectl get pods
+          kubectl get services
+          echo "✅ Deployment complete!"
+
+  # ── JOB 4: Monitoring Setup ──────────────────────
+  monitoring:
+    name: Setup Monitoring
+    runs-on: ubuntu-latest
+    needs: [terraform, deploy]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4.2.2
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Setup kubectl + Helm
+        run: |
+          aws eks update-kubeconfig \
+            --name ${{ needs.terraform.outputs.cluster_name }} \
+            --region ${{ env.AWS_REGION }}
+
+      - name: Install Prometheus + Grafana
+        run: |
+          # Helm repo add చేయి
+          helm repo add prometheus-community \
+            https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+          # Prometheus + Grafana install చేయి
+          helm upgrade --install monitoring \
+            prometheus-community/kube-prometheus-stack \
+            --namespace monitoring \
+            --create-namespace \
+            --set grafana.adminPassword=${{ secrets.GRAFANA_PASSWORD }} \
+            --wait \
+            --timeout 10m
+
+      - name: Get Grafana URL
+        run: |
+          kubectl get svc -n monitoring
+          echo "✅ Monitoring setup complete!"

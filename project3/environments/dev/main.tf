@@ -35,3 +35,15 @@ module "rds" {
   web_sg_id        = module.ec2.web_sg_id
   db_password      = var.db_password
 }
+# EKS Module — K8s Cluster
+module "eks" {
+  source       = "../../modules/eks"
+  project_name = "${var.project_name}-${var.env}"
+  region       = var.region
+  vpc_id       = module.vpc.vpc_id
+  subnet_ids   = [module.vpc.public_subnet_1, module.vpc.public_subnet_2]
+  node_type    = var.eks_node_type
+  min_nodes    = var.eks_min_nodes
+  max_nodes    = var.eks_max_nodes
+  desired_nodes= var.eks_desired_nodes
+}

@@ -11,7 +11,6 @@ env:
   PROJECT_NAME: financial-tracker
 
 jobs:
-  # ── JOB 1: Terraform ─────────────────────────────
   terraform:
     name: Terraform Infrastructure
     runs-on: ubuntu-latest
@@ -72,7 +71,6 @@ jobs:
           echo "ecr_url=$(terraform output -raw ecr_url)" >> $GITHUB_OUTPUT
           echo "cluster_name=$(terraform output -raw cluster_name)" >> $GITHUB_OUTPUT
 
-  # ── JOB 2: Docker Build + Push ───────────────────
   docker:
     name: Docker Build and Push
     runs-on: ubuntu-latest
@@ -94,27 +92,21 @@ jobs:
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Login to ECR
-        id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
       - name: Set Image Tag
         id: meta
-        run: |
-          echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
+        run: echo "image_tag=${{ github.sha }}" >> $GITHUB_OUTPUT
 
-      - name: Build Docker Image
+      - name: Build and Push Docker Image
         working-directory: project3
         run: |
           docker build -t ${{ needs.terraform.outputs.ecr_url }}:${{ github.sha }} .
           docker tag ${{ needs.terraform.outputs.ecr_url }}:${{ github.sha }} \
                      ${{ needs.terraform.outputs.ecr_url }}:latest
-
-      - name: Push to ECR
-        run: |
           docker push ${{ needs.terraform.outputs.ecr_url }}:${{ github.sha }}
           docker push ${{ needs.terraform.outputs.ecr_url }}:latest
 
-  # ── JOB 3: Deploy to EKS ─────────────────────────
   deploy:
     name: Deploy to EKS
     runs-on: ubuntu-latest
@@ -135,7 +127,7 @@ jobs:
       - name: Setup kubectl
         uses: azure/setup-kubectl@v3
         with:
-          version: 'v1.29.0'
+          version: 'v1.31.0'
 
       - name: Setup Helm
         uses: azure/setup-helm@v3
@@ -151,7 +143,8 @@ jobs:
       - name: Deploy with Helm
         working-directory: project3
         run: |
-          helm upgrade --install financial-tracker ./helm/financial-tracker \
+          helm upgrade --install financial-tracker \
+            ./helm/financial-tracker \
             --set image.repository=${{ needs.terraform.outputs.ecr_url }} \
             --set image.tag=${{ needs.docker.outputs.image_tag }} \
             --set env.APP_ENV=dev \
@@ -164,7 +157,6 @@ jobs:
           kubectl get services
           echo "✅ Deployment complete!"
 
-  # ── JOB 4: Monitoring Setup ──────────────────────
   monitoring:
     name: Setup Monitoring
     runs-on: ubuntu-latest
@@ -172,9 +164,6 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
 
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4.2.2
-
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
@@ -182,7 +171,17 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Setup kubectl + Helm
+      - name: Setup kubectl
+        uses: azure/setup-kubectl@v3
+        with:
+          version: 'v1.31.0'
+
+      - name: Setup Helm
+        uses: azure/setup-helm@v3
+        with:
+          version: 'v3.14.0'
+
+      - name: Update kubeconfig
         run: |
           aws eks update-kubeconfig \
             --name ${{ needs.terraform.outputs.cluster_name }} \
@@ -190,12 +189,9 @@ jobs:
 
       - name: Install Prometheus + Grafana
         run: |
-          # Helm repo add చేయి
           helm repo add prometheus-community \
             https://prometheus-community.github.io/helm-charts
           helm repo update
-
-          # Prometheus + Grafana install చేయి
           helm upgrade --install monitoring \
             prometheus-community/kube-prometheus-stack \
             --namespace monitoring \
@@ -207,4 +203,4 @@ jobs:
       - name: Get Grafana URL
         run: |
           kubectl get svc -n monitoring
-          echo "✅ Monitoring setup complete!"
+          echo "✅ Monitoring complete!"

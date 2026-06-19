@@ -13,3 +13,6 @@ terraform.tfvars
 # OS
 .DS_Store
 Thumbs.db
+get_helm.sh
+*.tar.gz
+linux-amd64/

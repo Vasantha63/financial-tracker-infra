@@ -188,12 +188,13 @@ jobs:
             --region ${{ env.AWS_REGION }}
 
       - name: Install Prometheus + Grafana
+        env:
+          GRAFANA_PASS: ${{ secrets.GRAFANA_PASSWORD }}
         run: |
           helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
           helm repo update
-          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace --set grafana.adminPassword=${{ secrets.GRAFANA_PASSWORD }} --wait --timeout 10m  
+          helm upgrade --install monitoring prometheus-community/kube-prometheus-stack --namespace monitoring --create-namespace --set grafana.adminPassword="$GRAFANA_PASS" --wait --timeout 10m      
       
-
       - name: Get Grafana URL
         run: |
           kubectl get svc -n monitoring
